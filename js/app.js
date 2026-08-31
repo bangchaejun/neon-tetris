@@ -1,5 +1,5 @@
 /**
- * BANBAN TETRIS - Main Controller, Dynamic Renderer & Doggy Event Bindings
+ * BANBAN TETRIS - Main Controller, Dynamic Renderer & Realistic 3D Character Bindings
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const overlayModal = document.getElementById('overlayModal');
   const modalTitle = document.getElementById('modalTitle');
   const modalSubtitle = document.getElementById('modalSubtitle');
-  const modalBanbanIcon = document.getElementById('modalBanbanIcon');
+  const modalBanbanPhoto = document.getElementById('modalBanbanPhoto');
   const modalActionBtn = document.getElementById('modalActionBtn');
 
   // Game Instance
@@ -46,44 +46,40 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastTime = 0;
   let animationId = null;
 
-  // 반반이 마스코트 감정 및 리액션 핸들러
-  const BANBAN_PHOTOS = {
-    idle: 'assets/banban/banban2.jpg',
-    happy: 'assets/banban/banban1.jpg',
-    panic: 'assets/banban/banban3.jpg',
-    fever: 'assets/banban/banban4.jpg',
-    sad: 'assets/banban/banban3.jpg'
+  // 🐶 우리집 반반이 기반 실사 3D 캐릭터 상태 매핑
+  const BANBAN_CHARACTERS = {
+    idle: 'assets/banban/char_idle.jpg',
+    happy: 'assets/banban/char_happy.jpg',
+    panic: 'assets/banban/char_panic.jpg',
+    fever: 'assets/banban/char_happy.jpg',
+    sad: 'assets/banban/char_panic.jpg'
   };
 
   game.onMascotReact = (state, message) => {
     if (banbanSpeech) banbanSpeech.textContent = message;
     if (banbanAvatar) {
-      banbanAvatar.src = BANBAN_PHOTOS[state] || BANBAN_PHOTOS.idle;
+      banbanAvatar.src = BANBAN_CHARACTERS[state] || BANBAN_CHARACTERS.idle;
       banbanAvatar.classList.remove('bounce', 'spin');
       void banbanAvatar.offsetWidth;
 
-      if (state === 'fever') {
-        banbanAvatar.classList.add('spin');
-        if (mascotBadge) mascotBadge.textContent = '🔥 피버 폭발!';
-      } else if (state === 'happy') {
+      if (state === 'fever' || state === 'happy') {
         banbanAvatar.classList.add('bounce');
-        if (mascotBadge) mascotBadge.textContent = '💖 멍멍!';
+        if (mascotBadge) mascotBadge.textContent = state === 'fever' ? '피버 파워!' : '신남 모드';
       } else if (state === 'panic') {
-        if (mascotBadge) mascotBadge.textContent = '💦 으악!';
+        if (mascotBadge) mascotBadge.textContent = '위험 경보!';
       } else {
-        if (mascotBadge) mascotBadge.textContent = '🐾 멍멍!';
+        if (mascotBadge) mascotBadge.textContent = '집중 모드';
       }
     }
   };
 
-  // 🐾 귀여운 발바닥 젤리가 돋보이는 네온 블록 렌더링
+  // 프리미엄 네온 블록 렌더링
   function drawBlock(ctx, x, y, color, size = BLOCK_SIZE, isGhost = false) {
     const px = x * size;
     const py = y * size;
 
     ctx.save();
     if (isGhost) {
-      // 반투명 고스트 블록
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.5;
       ctx.strokeRect(px + 1, py + 1, size - 2, size - 2);
@@ -91,7 +87,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.globalAlpha = 0.15;
       ctx.fillRect(px + 2, py + 2, size - 4, size - 4);
     } else {
-      // 본체 채우기 및 글로우
       ctx.shadowBlur = 10;
       ctx.shadowColor = color;
       ctx.fillStyle = color;
@@ -107,11 +102,9 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fillRect(px + 1, py + size - 4, size - 2, 3);
       ctx.fillRect(px + size - 4, py + 1, 3, size - 2);
 
-      // 블록 중앙 미세 발바닥 젤리 포인트 🐾
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-      ctx.beginPath();
-      ctx.arc(px + size / 2, py + size / 2 + 1, 2.5, 0, Math.PI * 2);
-      ctx.fill();
+      // 중앙 큐빅 코어 포인트
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.fillRect(px + size / 2 - 2, py + size / 2 - 2, 4, 4);
     }
     ctx.restore();
   }
@@ -143,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
     gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
     drawGrid(gameCtx, gameCanvas.width, gameCanvas.height, BLOCK_SIZE);
 
-    // 1. 보드에 쌓인 블록
+    // 1. 고정된 보드 블록
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         if (game.board[r][c]) {
@@ -299,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 모달 제어
   function showGameOverModal() {
-    modalBanbanIcon.textContent = '🐶💦';
+    if (modalBanbanPhoto) modalBanbanPhoto.src = BANBAN_CHARACTERS.sad;
     modalTitle.textContent = 'GAME OVER';
     modalTitle.style.color = 'var(--neon-pink)';
     modalSubtitle.innerHTML = `최종 점수: <span class="neon-cyan">${game.score.toLocaleString()}</span><br><small style="color:var(--neon-gold)">최고 콤보: ${game.maxCombo}연속!</small>`;
@@ -308,10 +301,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showPauseModal() {
-    modalBanbanIcon.textContent = '🐶💤';
+    if (modalBanbanPhoto) modalBanbanPhoto.src = BANBAN_CHARACTERS.idle;
     modalTitle.textContent = 'PAUSED';
     modalTitle.style.color = 'var(--neon-cyan)';
-    modalSubtitle.innerHTML = `반반이도 잠시 낮잠 타임!<br>준비되면 계속하기를 눌러주세요.`;
+    modalSubtitle.innerHTML = `반반이도 잠시 휴식 타임!<br>준비되면 계속하기를 눌러주세요.`;
     modalActionBtn.textContent = '계속하기';
     overlayModal.classList.remove('hidden');
   }

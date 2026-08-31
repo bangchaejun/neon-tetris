@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BANBAN TETRIS - Cyberpunk Doggo Edition</title>
+  <title>BANBAN TETRIS - Doggy Edition</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
@@ -19,11 +19,14 @@
     <!-- Header -->
     <header class="game-header">
       <div class="header-left">
-        <h1 class="logo-title">BANBAN<span class="highlight">TETRIS</span> 🐾</h1>
+        <div class="logo-wrap">
+          <img src="assets/banban/char_idle.jpg" alt="반반이 로고" class="header-mini-avatar">
+          <h1 class="logo-title">BANBAN<span class="highlight">TETRIS</span></h1>
+        </div>
       </div>
       <div class="header-controls">
-        <button id="btn-gallery" class="btn-pill" title="반반이 사진첩">
-          <span class="icon">🐶</span> <span>반반이 앨범</span>
+        <button id="btn-gallery" class="btn-pill" title="반반이 실사 앨범">
+          <img src="assets/banban/banban2.jpg" alt="앨범" class="btn-thumb"> <span>반반이 사진첩</span>
         </button>
         <button id="btn-sound" class="btn-icon" title="사운드 토글 (M)">
           <span class="icon">🔊</span>
@@ -45,13 +48,13 @@
         <div class="glass-card mascot-card">
           <div class="mascot-avatar-wrap">
             <div class="avatar-glow"></div>
-            <img src="assets/banban/banban2.jpg" alt="반반이" id="banbanAvatar" class="banban-img">
-            <span class="mascot-badge" id="mascotBadge">🐾 멍멍!</span>
+            <img src="assets/banban/char_idle.jpg" alt="반반이 캐릭터" id="banbanAvatar" class="banban-img">
+            <span class="mascot-badge" id="mascotBadge">집중 모드</span>
           </div>
           <div class="mascot-info">
             <span class="mascot-name">우리집 귀요미 반반이</span>
             <div class="speech-bubble" id="banbanSpeech">
-              블록 떨어지는 중... 집중! 🐶
+              블록 떨어지는 중... 집중!
             </div>
           </div>
           <!-- Fever Meter -->
@@ -83,7 +86,7 @@
           <!-- In-game Combo & Impact Banner -->
           <div id="comboBanner" class="combo-banner">
             <div class="combo-text" id="comboText">COMBO x2!</div>
-            <div class="combo-sub" id="comboSub">멍멍 파워 발동! 🐾</div>
+            <div class="combo-sub" id="comboSub">반반이 파워 발동!</div>
           </div>
 
           <!-- Danger Warning Vignette -->
@@ -147,27 +150,27 @@
   <div id="galleryModal" class="modal-backdrop hidden">
     <div class="modal-content glass-card gallery-modal-content">
       <div class="modal-header-row">
-        <h2 class="modal-title neon-gold">🐾 우리집 반반이 앨범</h2>
+        <h2 class="modal-title neon-gold">우리집 반반이 실사 앨범</h2>
         <button id="btnCloseGallery" class="btn-icon">✖</button>
       </div>
-      <p class="modal-desc">테트리스 최고의 응원단장, 폼피츠 반반이의 힐링 사진첩!</p>
+      <p class="modal-desc">테트리스 최고의 응원단장, 폼피츠 반반이의 힐링 사진첩</p>
       
       <div class="gallery-grid">
         <div class="polaroid-card">
           <img src="assets/banban/banban2.jpg" alt="바닷가 산책 반반이">
-          <span>🌊 바닷가 산책 윙크!</span>
+          <span>바닷가 산책 윙크</span>
         </div>
         <div class="polaroid-card">
-          <img src="assets/banban/banban1.jpg" alt="침대에서 꿀잠 반반이">
-          <span>🛏️ 침대에서 힐링 낮잠</span>
+          <img src="assets/banban/banban1.jpg" alt="침대에서 낮잠 반반이">
+          <span>침대에서 힐링 낮잠</span>
         </div>
         <div class="polaroid-card">
           <img src="assets/banban/banban3.jpg" alt="호기심 가득 반반이">
-          <span>✨ 똘망똘망 호기심</span>
+          <span>똘망똘망 호기심</span>
         </div>
         <div class="polaroid-card">
           <img src="assets/banban/banban4.jpg" alt="간식 기다리는 반반이">
-          <span>🦴 간식 기다리는 중!</span>
+          <span>간식 기다리는 중</span>
         </div>
       </div>
     </div>
@@ -176,11 +179,11 @@
   <!-- Modal Overlays (Game Over / Pause) -->
   <div id="overlayModal" class="modal-backdrop hidden">
     <div class="modal-content glass-card">
-      <div class="modal-banban-icon" id="modalBanbanIcon">🐶</div>
+      <img src="assets/banban/char_panic.jpg" alt="반반이 상태" class="modal-banban-photo" id="modalBanbanPhoto">
       <h2 id="modalTitle" class="modal-title">GAME OVER</h2>
       <p id="modalSubtitle" class="modal-subtitle">최종 점수: <span id="finalScore" class="neon-cyan">0</span></p>
       <div class="modal-actions">
-        <button id="modalActionBtn" class="glow-btn">다시 도전</button>
+        <button id="modalActionBtn" class="glow-btn">반반이랑 다시하기</button>
       </div>
     </div>
   </div>
