@@ -1,5 +1,5 @@
 /**
- * 정통 테트리스 코어 엔진 (7-Bag, SRS, Ghost, Hold, Score)
+ * BANBAN TETRIS - Core Engine with Advanced Combo & Fever System
  */
 
 const COLS = 10;
@@ -51,11 +51,11 @@ const COLORS = {
   L: '#ff7700', // Orange
   O: '#ffe600', // Yellow
   S: '#00ff66', // Green
-  T: '#9d00ff', // Purple
-  Z: '#ff0055'  // Red/Magenta
+  T: '#a855f7', // Purple
+  Z: '#ff007f'  // Pink/Magenta
 };
 
-// SRS Wall Kick 데이터 (JLSTZ용)
+// SRS Wall Kick 데이터
 const WALLKICKS_JLSTZ = {
   '0->1': [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
   '1->0': [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
@@ -67,7 +67,6 @@ const WALLKICKS_JLSTZ = {
   '0->3': [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]]
 };
 
-// SRS Wall Kick 데이터 (I용)
 const WALLKICKS_I = {
   '0->1': [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
   '1->0': [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
@@ -84,25 +83,21 @@ class Piece {
     this.type = type;
     this.matrix = SHAPES[type].map(row => [...row]);
     this.color = COLORS[type];
-    this.rotation = 0; // 0, 1, 2, 3
-    
-    // 시작 위치 (중앙 상단)
+    this.rotation = 0;
     this.x = Math.floor((COLS - this.matrix[0].length) / 2);
     this.y = type === 'I' ? -1 : 0;
   }
 
-  // 행렬 90도 회전
   rotateMatrix(dir = 1) {
     const N = this.matrix.length;
     const result = Array.from({ length: N }, () => Array(N).fill(0));
-    
-    if (dir === 1) { // 시계방향
+    if (dir === 1) {
       for (let r = 0; r < N; r++) {
         for (let c = 0; c < N; c++) {
           result[c][N - 1 - r] = this.matrix[r][c];
         }
       }
-    } else { // 반시계방향
+    } else {
       for (let r = 0; r < N; r++) {
         for (let c = 0; c < N; c++) {
           result[N - 1 - c][r] = this.matrix[r][c];
@@ -126,15 +121,18 @@ class TetrisGame {
     this.level = 1;
     this.lines = 0;
     this.combo = -1;
-    this.highScore = parseInt(localStorage.getItem('neon_tetris_highscore') || '0', 10);
+    this.maxCombo = 0;
+    this.feverGauge = 0; // 0 ~ 100
+    this.highScore = parseInt(localStorage.getItem('banban_tetris_highscore') || '0', 10);
 
     this.isGameOver = false;
     this.isPaused = false;
-    this.lockTimer = null;
-    this.lockDelay = 500; // ms
+    this.isDanger = false;
 
     this.dropCounter = 0;
-    this.dropInterval = 1000; // 1초부터 시작
+    this.dropInterval = 1000;
+
+    this.onMascotReact = null; // UI 콜백
 
     this.initBag();
     this.spawnNextPieces();
@@ -151,15 +149,17 @@ class TetrisGame {
     this.level = 1;
     this.lines = 0;
     this.combo = -1;
+    this.feverGauge = 0;
     this.isGameOver = false;
     this.isPaused = false;
+    this.isDanger = false;
     this.dropInterval = 1000;
     this.initBag();
     this.spawnNextPieces();
     this.spawnPiece();
+    if (this.onMascotReact) this.onMascotReact('idle', '새 게임 시작! 반반이랑 가보자고! 🐾');
   }
 
-  // 7-Bag 시스템
   initBag() {
     const pieces = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
     for (let i = pieces.length - 1; i > 0; i--) {
@@ -187,36 +187,49 @@ class TetrisGame {
     this.spawnNextPieces();
     this.canHold = true;
 
+    // 위험 상태 감지 (상단 5줄 이내에 블록 존재)
+    this.checkDangerState();
+
     // 스폰 즉시 충돌 판정 (게임오버)
     if (this.checkCollision(this.currentPiece.x, this.currentPiece.y, this.currentPiece.matrix)) {
       this.isGameOver = true;
       if (window.soundEngine) window.soundEngine.playGameOver();
+      if (this.onMascotReact) this.onMascotReact('sad', '으앙 게임오버! 반반이가 위로해줄게... 🐶💦');
     }
   }
 
-  // 충돌 판정
+  checkDangerState() {
+    let topBlockRow = ROWS;
+    for (let r = 0; r < ROWS; r++) {
+      if (this.board[r].some(cell => cell !== 0)) {
+        topBlockRow = r;
+        break;
+      }
+    }
+    this.isDanger = topBlockRow <= 5;
+    const vignette = document.getElementById('dangerVignette');
+    if (vignette) {
+      vignette.classList.toggle('active', this.isDanger);
+    }
+    if (this.isDanger && !this.isGameOver && this.onMascotReact) {
+      this.onMascotReact('panic', '위험해 위험해! 천장 뚫리겠어! 💦');
+    }
+  }
+
   checkCollision(offsetX, offsetY, matrix) {
     for (let r = 0; r < matrix.length; r++) {
       for (let c = 0; c < matrix[r].length; c++) {
         if (matrix[r][c]) {
           const newX = offsetX + c;
           const newY = offsetY + r;
-
-          // 보드 경계 검사
-          if (newX < 0 || newX >= COLS || newY >= ROWS) {
-            return true;
-          }
-          // 다른 블록과 겹침 검사
-          if (newY >= 0 && this.board[newY][newX]) {
-            return true;
-          }
+          if (newX < 0 || newX >= COLS || newY >= ROWS) return true;
+          if (newY >= 0 && this.board[newY][newX]) return true;
         }
       }
     }
     return false;
   }
 
-  // 이동
   move(dir) {
     if (this.isGameOver || this.isPaused || !this.currentPiece) return false;
     if (!this.checkCollision(this.currentPiece.x + dir, this.currentPiece.y, this.currentPiece.matrix)) {
@@ -227,10 +240,9 @@ class TetrisGame {
     return false;
   }
 
-  // 회전 (SRS 적용)
   rotate(dir = 1) {
     if (this.isGameOver || this.isPaused || !this.currentPiece) return;
-    if (this.currentPiece.type === 'O') return; // O피스는 회전 불필요
+    if (this.currentPiece.type === 'O') return;
 
     const oldRot = this.currentPiece.rotation;
     const newRot = (oldRot + (dir === 1 ? 1 : 3)) % 4;
@@ -250,7 +262,6 @@ class TetrisGame {
     }
   }
 
-  // 소프트 드롭
   softDrop() {
     if (this.isGameOver || this.isPaused || !this.currentPiece) return;
     if (!this.checkCollision(this.currentPiece.x, this.currentPiece.y + 1, this.currentPiece.matrix)) {
@@ -263,7 +274,6 @@ class TetrisGame {
     }
   }
 
-  // 하드 드롭
   hardDrop() {
     if (this.isGameOver || this.isPaused || !this.currentPiece) return;
     let dropDistance = 0;
@@ -278,7 +288,6 @@ class TetrisGame {
     this.lockPiece();
   }
 
-  // 홀드 기능
   hold() {
     if (this.isGameOver || this.isPaused || !this.canHold || !this.currentPiece) return;
 
@@ -296,7 +305,6 @@ class TetrisGame {
     this.canHold = false;
   }
 
-  // 고스트 피스 위치 계산
   getGhostPosition() {
     if (!this.currentPiece) return null;
     let ghostY = this.currentPiece.y;
@@ -306,7 +314,6 @@ class TetrisGame {
     return { x: this.currentPiece.x, y: ghostY };
   }
 
-  // 블록 고정 및 라인 제거
   lockPiece() {
     const { x, y, matrix, color } = this.currentPiece;
     for (let r = 0; r < matrix.length; r++) {
@@ -325,7 +332,7 @@ class TetrisGame {
     this.spawnPiece();
   }
 
-  // 라인 클리어 검사 및 점수 산정
+  // 🚀 고도화된 콤보 및 피버 연쇄 점수 시스템!
   clearLines() {
     let linesCleared = 0;
     const clearedIndices = [];
@@ -338,14 +345,14 @@ class TetrisGame {
     }
 
     if (linesCleared > 0) {
-      // 파티클 폭발 효과
+      // 1. 파티클 폭발
       if (window.particleSystem) {
         clearedIndices.forEach(rowIdx => {
           window.particleSystem.createLineExplosion(rowIdx * BLOCK_SIZE, COLS * BLOCK_SIZE, BLOCK_SIZE);
         });
       }
 
-      // 보드 갱신
+      // 2. 보드 갱신
       this.board = this.board.filter((_, idx) => !clearedIndices.includes(idx));
       while (this.board.length < ROWS) {
         this.board.unshift(Array(COLS).fill(0));
@@ -353,51 +360,79 @@ class TetrisGame {
 
       this.lines += linesCleared;
       this.combo++;
+      if (this.combo > this.maxCombo) this.maxCombo = this.combo;
 
-      // 점수 계산 (표준 가이드)
-      const basePoints = [0, 100, 300, 500, 800];
-      const point = basePoints[linesCleared] * this.level + (this.combo > 0 ? this.combo * 50 * this.level : 0);
-      this.score += point;
+      // 3. 피버 게이지 충전 (콤보에 따라 폭풍 상승)
+      this.feverGauge = Math.min(100, this.feverGauge + (linesCleared * 15) + (this.combo * 10));
 
-      if (window.soundEngine) window.soundEngine.playLineClear(linesCleared);
+      // 4. 점수 계산 공식 (표준 + 콤보 지수 보너스 + 피버 배수)
+      const isFeverActive = this.feverGauge >= 100;
+      const feverMultiplier = isFeverActive ? 2 : 1;
+      const basePoints = [0, 100, 300, 600, 1200];
+      const comboBonus = this.combo > 0 ? (this.combo * 100 * this.level * (this.combo >= 3 ? 2 : 1)) : 0;
+      const earnedScore = (basePoints[linesCleared] * this.level + comboBonus) * feverMultiplier;
+      this.score += earnedScore;
 
-      // 테트리스 (4줄 클리어) 특수 효과
-      if (linesCleared === 4) {
-        if (window.triggerScreenShake) window.triggerScreenShake('heavy');
-        this.showBanner('TETRIS!!');
-      } else if (this.combo > 1) {
-        this.showBanner(`${this.combo} COMBO!`);
+      // 5. 음향 & 시각 연출 & 반반이 리액션
+      if (window.soundEngine) {
+        if (this.combo >= 2) {
+          window.soundEngine.playCombo(this.combo);
+          window.soundEngine.playBark(); // 멍멍!
+        } else {
+          window.soundEngine.playLineClear(linesCleared);
+        }
       }
 
-      // 레벨업 판정 (10라인마다)
+      // 배너 및 마스코트 리액션
+      if (linesCleared === 4) {
+        if (window.triggerScreenShake) window.triggerScreenShake('heavy');
+        this.showBanner('BANBAN TETRIS!!', '🦴 뼈다귀 대폭발! 멍멍!!');
+        if (this.onMascotReact) this.onMascotReact('fever', '와아 테트리스!! 간식 10개 각이다! 🦴✨');
+      } else if (this.combo >= 3) {
+        if (window.triggerScreenShake) window.triggerScreenShake(isFeverActive ? 'fever' : 'heavy');
+        this.showBanner(`${this.combo} COMBO FEVER!!`, `🔥 ${this.combo}연속 콤보 작렬!`);
+        if (this.onMascotReact) this.onMascotReact('fever', `대박대박 ${this.combo}콤보!! 신난다 멍멍! 🐾🔥`);
+      } else if (this.combo >= 1) {
+        if (window.triggerScreenShake) window.triggerScreenShake('light');
+        this.showBanner(`${this.combo} COMBO!`, '🐾 나이스 콤보!');
+        if (this.onMascotReact) this.onMascotReact('happy', '좋았어! 계속 이어서 콤보 가자! 💖');
+      }
+
+      // 레벨업 체크
       const newLevel = Math.floor(this.lines / 10) + 1;
       if (newLevel > this.level) {
         this.level = newLevel;
         this.dropInterval = Math.max(100, 1000 - (this.level - 1) * 80);
         if (window.soundEngine) window.soundEngine.playLevelUp();
-        this.showBanner(`LEVEL ${this.level}!`);
+        this.showBanner(`LEVEL ${this.level}!`, '🚀 속도 증가!');
       }
 
       this.updateScore();
     } else {
+      // 콤보 끊김 시 피버 게이지 서서히 감소
       this.combo = -1;
+      this.feverGauge = Math.max(0, this.feverGauge - 10);
     }
   }
 
-  showBanner(text) {
+  showBanner(mainText, subText) {
     const banner = document.getElementById('comboBanner');
-    if (!banner) return;
-    banner.textContent = text;
+    const comboText = document.getElementById('comboText');
+    const comboSub = document.getElementById('comboSub');
+    if (!banner || !comboText || !comboSub) return;
+
+    comboText.textContent = mainText;
+    comboSub.textContent = subText;
     banner.classList.add('show');
     setTimeout(() => {
       banner.classList.remove('show');
-    }, 1000);
+    }, 1100);
   }
 
   updateScore() {
     if (this.score > this.highScore) {
       this.highScore = this.score;
-      localStorage.setItem('neon_tetris_highscore', this.highScore.toString());
+      localStorage.setItem('banban_tetris_highscore', this.highScore.toString());
     }
   }
 }
