@@ -1,5 +1,5 @@
 /**
- * BANBAN TETRIS - Main Controller, Dynamic Renderer & Realistic 3D Character Bindings
+ * BANBAN WORLD TETRIS - Dynamic Banban Photo Block Renderer & Game Loop
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -46,7 +46,25 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastTime = 0;
   let animationId = null;
 
-  // 🐶 우리집 반반이 기반 실사 3D 캐릭터 상태 매핑
+  // 🐶 7종 테트로미노 전용 반반이 실사 텍스처 이미지 로드
+  const BANBAN_BLOCK_TEXTURES = {
+    I: 'assets/banban/char_happy.jpg',
+    O: 'assets/banban/char_idle.jpg',
+    T: 'assets/banban/banban2.jpg',
+    S: 'assets/banban/banban1.jpg',
+    Z: 'assets/banban/banban3.jpg',
+    J: 'assets/banban/banban4.jpg',
+    L: 'assets/banban/char_panic.jpg'
+  };
+
+  const loadedTextures = {};
+  for (let key in BANBAN_BLOCK_TEXTURES) {
+    const img = new Image();
+    img.src = BANBAN_BLOCK_TEXTURES[key];
+    loadedTextures[key] = img;
+  }
+
+  // 반반이 마스코트 감정 상태
   const BANBAN_CHARACTERS = {
     idle: 'assets/banban/char_idle.jpg',
     happy: 'assets/banban/char_happy.jpg',
@@ -59,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (banbanSpeech) banbanSpeech.textContent = message;
     if (banbanAvatar) {
       banbanAvatar.src = BANBAN_CHARACTERS[state] || BANBAN_CHARACTERS.idle;
-      banbanAvatar.classList.remove('bounce', 'spin');
+      banbanAvatar.classList.remove('bounce');
       void banbanAvatar.offsetWidth;
 
       if (state === 'fever' || state === 'happy') {
@@ -73,38 +91,67 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // 프리미엄 네온 블록 렌더링
-  function drawBlock(ctx, x, y, color, size = BLOCK_SIZE, isGhost = false) {
+  // 🎨 반반이 실사 포토 블록 렌더러 (Block with Banban Face Texture)
+  function drawBanbanBlock(ctx, x, y, typeOrColor, size = BLOCK_SIZE, isGhost = false) {
     const px = x * size;
     const py = y * size;
 
+    // 타입 역추적 (문자열 또는 색상 코드 처리)
+    let pieceType = 'O';
+    let blockColor = '#ffd700';
+
+    if (window.SHAPES[typeOrColor]) {
+      pieceType = typeOrColor;
+      blockColor = window.COLORS[typeOrColor] || '#ffd700';
+    } else {
+      // 색상으로 역매핑
+      for (let t in window.COLORS) {
+        if (window.COLORS[t] === typeOrColor) {
+          pieceType = t;
+          blockColor = typeOrColor;
+          break;
+        }
+      }
+    }
+
     ctx.save();
     if (isGhost) {
-      ctx.strokeStyle = color;
+      // 반투명 고스트 피스
+      ctx.strokeStyle = blockColor;
       ctx.lineWidth = 1.5;
       ctx.strokeRect(px + 1, py + 1, size - 2, size - 2);
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.15;
+      ctx.fillStyle = blockColor;
+      ctx.globalAlpha = 0.2;
       ctx.fillRect(px + 2, py + 2, size - 4, size - 4);
     } else {
+      // 1. 네온 글로우 테두리 프레임
       ctx.shadowBlur = 10;
-      ctx.shadowColor = color;
-      ctx.fillStyle = color;
+      ctx.shadowColor = blockColor;
+      ctx.fillStyle = 'rgba(15, 20, 35, 0.9)';
       ctx.fillRect(px + 1, py + 1, size - 2, size - 2);
 
-      // 상단/좌측 하이라이트 광원
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.fillRect(px + 1, py + 1, size - 2, 3);
-      ctx.fillRect(px + 1, py + 1, 3, size - 2);
+      // 2. 반반이 실사 텍스처 렌더링
+      const texImg = loadedTextures[pieceType];
+      if (texImg && texImg.complete && texImg.naturalWidth > 0) {
+        ctx.save();
+        ctx.beginPath();
+        // 모서리가 살짝 둥근 사각형 클리핑
+        const pad = 2;
+        ctx.rect(px + pad, py + pad, size - pad * 2, size - pad * 2);
+        ctx.clip();
+        ctx.drawImage(texImg, px + pad, py + pad, size - pad * 2, size - pad * 2);
+        ctx.restore();
+      }
 
-      // 하단/우측 음영
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-      ctx.fillRect(px + 1, py + size - 4, size - 2, 3);
-      ctx.fillRect(px + size - 4, py + 1, 3, size - 2);
+      // 3. 반투명 컬러 오버레이 틴트 & 입체감 테두리
+      ctx.strokeStyle = blockColor;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px + 1, py + 1, size - 2, size - 2);
 
-      // 중앙 큐빅 코어 포인트
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.fillRect(px + size / 2 - 2, py + size / 2 - 2, 4, 4);
+      // 상/좌측 광원 하이라이트
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.fillRect(px + 1, py + 1, size - 2, 2.5);
+      ctx.fillRect(px + 1, py + 1, 2.5, size - 2);
     }
     ctx.restore();
   }
@@ -112,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 그리드 배경 렌더링
   function drawGrid(ctx, width, height, size) {
     ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
     ctx.lineWidth = 1;
 
     for (let x = 0; x <= width; x += size) {
@@ -136,11 +183,11 @@ document.addEventListener('DOMContentLoaded', () => {
     gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
     drawGrid(gameCtx, gameCanvas.width, gameCanvas.height, BLOCK_SIZE);
 
-    // 1. 고정된 보드 블록
+    // 1. 고정된 보드 블록들 (반반이 얼굴 블록)
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         if (game.board[r][c]) {
-          drawBlock(gameCtx, c, r, game.board[r][c]);
+          drawBanbanBlock(gameCtx, c, r, game.board[r][c], BLOCK_SIZE, false);
         }
       }
     }
@@ -148,23 +195,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. 고스트 피스
     const ghost = game.getGhostPosition();
     if (ghost && game.currentPiece && !game.isGameOver) {
-      const { matrix, color } = game.currentPiece;
+      const { matrix, type } = game.currentPiece;
       for (let r = 0; r < matrix.length; r++) {
         for (let c = 0; c < matrix[r].length; c++) {
           if (matrix[r][c]) {
-            drawBlock(gameCtx, ghost.x + c, ghost.y + r, color, BLOCK_SIZE, true);
+            drawBanbanBlock(gameCtx, ghost.x + c, ghost.y + r, type, BLOCK_SIZE, true);
           }
         }
       }
     }
 
-    // 3. 현재 조작 피스
+    // 3. 현재 낙하 중인 반반이 피스
     if (game.currentPiece && !game.isGameOver) {
-      const { x, y, matrix, color } = game.currentPiece;
+      const { x, y, matrix, type } = game.currentPiece;
       for (let r = 0; r < matrix.length; r++) {
         for (let c = 0; c < matrix[r].length; c++) {
           if (matrix[r][c]) {
-            drawBlock(gameCtx, x + c, y + r, color, BLOCK_SIZE, false);
+            drawBanbanBlock(gameCtx, x + c, y + r, type, BLOCK_SIZE, false);
           }
         }
       }
@@ -176,13 +223,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 미니 피스 렌더링
+  // 미니 홀드 캔버스 렌더링
   function renderMiniPiece(ctx, canvas, type, miniSize = 22) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!type) return;
 
     const matrix = window.SHAPES[type];
-    const color = window.COLORS[type];
     const pieceW = matrix[0].length * miniSize;
     const pieceH = matrix.length * miniSize;
     const startX = (canvas.width - pieceW) / 2;
@@ -191,21 +237,15 @@ document.addEventListener('DOMContentLoaded', () => {
     for (let r = 0; r < matrix.length; r++) {
       for (let c = 0; c < matrix[r].length; c++) {
         if (matrix[r][c]) {
-          const px = startX + c * miniSize;
-          const py = startY + r * miniSize;
-
-          ctx.save();
-          ctx.shadowBlur = 8;
-          ctx.shadowColor = color;
-          ctx.fillStyle = color;
-          ctx.fillRect(px + 1, py + 1, miniSize - 2, miniSize - 2);
-          ctx.restore();
+          const gridX = (startX + c * miniSize) / miniSize;
+          const gridY = (startY + r * miniSize) / miniSize;
+          drawBanbanBlock(ctx, gridX, gridY, type, miniSize, false);
         }
       }
     }
   }
 
-  // Next Queue 렌더링 (3개)
+  // Next Queue 렌더링
   function renderNextQueue() {
     nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
     const miniSize = 20;
@@ -215,7 +255,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!type) continue;
 
       const matrix = window.SHAPES[type];
-      const color = window.COLORS[type];
       const pieceW = matrix[0].length * miniSize;
       const startX = (nextCanvas.width - pieceW) / 2;
       const startY = 15 + i * 85;
@@ -223,22 +262,16 @@ document.addEventListener('DOMContentLoaded', () => {
       for (let r = 0; r < matrix.length; r++) {
         for (let c = 0; c < matrix[r].length; c++) {
           if (matrix[r][c]) {
-            const px = startX + c * miniSize;
-            const py = startY + r * miniSize;
-
-            nextCtx.save();
-            nextCtx.shadowBlur = 8;
-            nextCtx.shadowColor = color;
-            nextCtx.fillStyle = color;
-            nextCtx.fillRect(px + 1, py + 1, miniSize - 2, miniSize - 2);
-            nextCtx.restore();
+            const gridX = (startX + c * miniSize) / miniSize;
+            const gridY = (startY + r * miniSize) / miniSize;
+            drawBanbanBlock(nextCtx, gridX, gridY, type, miniSize, false);
           }
         }
       }
     }
   }
 
-  // HUD 및 피버 게이지 갱신
+  // HUD 갱신
   function updateHUD() {
     scoreDisplay.textContent = game.score.toLocaleString();
     levelDisplay.textContent = game.level;
@@ -303,8 +336,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function showPauseModal() {
     if (modalBanbanPhoto) modalBanbanPhoto.src = BANBAN_CHARACTERS.idle;
     modalTitle.textContent = 'PAUSED';
-    modalTitle.style.color = 'var(--neon-cyan)';
-    modalSubtitle.innerHTML = `반반이도 잠시 휴식 타임!<br>준비되면 계속하기를 눌러주세요.`;
+    modalTitle.style.color = 'var(--neon-gold)';
+    modalSubtitle.innerHTML = `반반이도 잠시 힐링 타임!<br>준비되면 계속하기를 눌러주세요.`;
     modalActionBtn.textContent = '계속하기';
     overlayModal.classList.remove('hidden');
   }
@@ -410,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 갤러리 모달 이벤트
+  // 갤러리 모달
   btnGallery.addEventListener('click', () => {
     galleryModal.classList.remove('hidden');
   });
